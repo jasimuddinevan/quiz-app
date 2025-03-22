@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Quiz App</title>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+    <div x-data="quizApp()" class="w-full max-w-2xl bg-white rounded-2xl shadow-xl overflow-hidden">
+        <!-- Setup Screen -->
+        <div x-show="!quizStarted" class="p-8">
+            <h1 class="text-3xl font-bold text-center mb-8">Quiz Setup</h1>
+            <div class="space-y-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Category</label>
+                    <select x-model="selectedCategory" class="w-full p-3 border rounded-lg">
+                        <option value="any">Any Category</option>
+                        <option value="9">General Knowledge</option>
+                        <option value="10">Entertainment: Books</option>
+                        <option value="11">Entertainment: Film</option>
+                        <option value="12">Entertainment: Music</option>
+                        <option value="13">Entertainment: Musicals & Theatres</option>
+                        <option value="14">Entertainment: Television</option>
+                        <option value="15">Entertainment: Video Games</option>
+                        <option value="16">Entertainment: Board Games</option>
+                        <option value="17">Science & Nature</option>
+                        <option value="18">Science: Computers</option>
+                        <option value="19">Science: Mathematics</option>
+                        <option value="20">Mythology</option>
+                        <option value="21">Sports</option>
+                        <option value="22">Geography</option>
+                        <option value="23">History</option>
+                        <option value="24">Politics</option>
+                        <option value="25">Art</option>
+                        <option value="26">Celebrities</option>
+                        <option value="27">Animals</option>
+                        <option value="28">Vehicles</option>
+                        <option value="29">Entertainment: Comics</option>
+                        <option value="30">Science: Gadgets</option>
+                        <option value="31">Entertainment: Japanese Anime & Manga</option>
+                        <option value="32">Entertainment: Cartoon & Animations</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Difficulty</label>
+                    <select x-model="selectedDifficulty" class="w-full p-3 border rounded-lg">
+                        <option value="any">Any Difficulty</option>
+                        <option value="easy">Easy</option>
+                        <option value="medium">Medium</option>
+                        <option value="hard">Hard</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Number of Questions</label>
+                    <input type="number" x-model="numberOfQuestions" min="1" max="50" class="w-full p-3 border rounded-lg">
+                </div>
+                <div x-show="!nameSkipped">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">What is your name? (Optional)</label>
+                    <input type="text" x-model="userName" placeholder="Enter your name" class="w-full p-3 border rounded-lg">
+                    <button @click="nameSkipped = true" class="text-sm text-gray-500 mt-2 hover:text-gray-700">Skip</button>
+                </div>
+                <button @click="startQuiz()" class="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition">Start Quiz</button>
+            </div>
+        </div>
+
+        <!-- Quiz Screen -->
+        <div x-show="quizStarted && !quizCompleted" class="p-8">
+            <div class="flex justify-between items-center mb-8">
+                <h2 class="text-2xl font-bold">Question <span x-text="currentQuestionIndex + 1"></span>/<span x-text="questions.length"></span></h2>
+                <div class="text-lg font-semibold text-blue-600">Score: <span x-text="score"></span></div>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="w-full bg-gray-200 rounded-full h-2.5 mb-8">
+                <div class="bg-blue-600 h-2.5 rounded-full transition-all duration-300" :style="`width: ${(currentQuestionIndex + 1) / questions.length * 100}%`"></div>
+            </div>
+
+            <div class="space-y-6">
+                <p x-text="currentQuestion.question" class="text-lg font-medium"></p>
+                <div class="grid gap-4">
+                    <template x-for="option in shuffledOptions" :key="option">
+                        <button 
+                            @click="selectAnswer(option)"
+                            :class="{
+                                'border-2 p-4 rounded-lg text-left transition': true,
+                                'hover:bg-gray-50': !selectedAnswer,
+                                'bg-green-100 border-green-500': selectedAnswer === option && option === currentQuestion.correct_answer,
+                                'bg-red-100 border-red-500': selectedAnswer === option && option !== currentQuestion.correct_answer,
+                                'opacity-50 cursor-not-allowed': selectedAnswer
+                            }"
+                            :disabled="selectedAnswer"
+                            x-text="option"
+                        ></button>
+                    </template>
+                </div>
+                <button 
+                    x-show="selectedAnswer"
+                    @click="nextQuestion()"
+                    class="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition mt-4"
+                    x-text="currentQuestionIndex === questions.length - 1 ? 'Finish Quiz' : 'Next Question'"
+                ></button>
+            </div>
+        </div>
+
+        <!-- Results Screen -->
+        <div x-show="quizCompleted" class="p-8 text-center">
+            <h2 class="text-3xl font-bold mb-4">Quiz Completed!</h2>
+            <div class="text-xl mb-6">Your Score: <span x-text="score"></span>/<span x-text="questions.length"></span></div>
+            <div class="text-lg mb-8" x-text="getScoreMessage()"></div>
+            <button @click="resetQuiz()" class="bg-blue-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-blue-700 transition">Try Again</button>
+        </div>
+    </div>
+
+    <!-- Developer Watermark -->
+    <div class="fixed bottom-0 w-full text-center py-2 text-gray-400 bg-white bg-opacity-10"> Built with
+        <a href="https://web.facebook.com/jasimuddinevan" target="_blank" class="hover:text-gray-600 transition-colors">
+             Jasim Uddin
+        </a>
+    </div>
+
+    <script src="quiz.js"></script>
+</body>
+</html>
